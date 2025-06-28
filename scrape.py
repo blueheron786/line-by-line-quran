@@ -1,5 +1,10 @@
 import time
+import os
+import json
 from playwright.sync_api import sync_playwright
+
+MAX_PAGE = 604
+OUTPUT_DIR = "output"
 
 ###################
 # Scrapes Qur'an, page by page, line by line, from quran.com.
@@ -12,56 +17,65 @@ def click_reading_button(page, clicks=3, delay=1.0):
         try:
             button = page.query_selector('button:has-text("Reading")')
             if button:
-                print("Clicking Reading button...")
                 button.click()
                 time.sleep(delay)
             else:
-                print("Reading button not found")
                 break
-        except Exception as e:
-            print(f"Error clicking Reading button: {e}")
+        except Exception:
             break
 
-def get_page_lines_real_text(page_num):
+def get_page_lines_real_text(page, page_num):
     url = f"https://quran.com/page/{page_num}"
+    page.goto(url)
+    page.wait_for_load_state('networkidle')
+    time.sleep(2)
+    click_reading_button(page, clicks=3, delay=1.0)
+
+    lines = []
+    for i in range(1, 16):
+        selector = f"#Page{page_num}-Line{i}"
+        line_div = page.query_selector(selector)
+        if not line_div:
+            lines.append("")
+            continue
+
+        hidden_div = line_div.query_selector('div[class*="SeoTextForVerse_visuallyHidden"]')
+        if not hidden_div:
+            lines.append("")
+            continue
+
+        first_child = hidden_div.query_selector("div")
+        text = first_child.inner_text().strip() if first_child else hidden_div.inner_text().strip()
+        lines.append(text)
+
+    return lines
+
+def main():
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        print(f"Loading page {page_num}...")
-        page.goto(url)
-        page.wait_for_load_state('networkidle')
-        time.sleep(2)
 
-        click_reading_button(page, clicks=3, delay=1.0)
+        all_pages = []
+        for page_num in range(1, MAX_PAGE + 1):
+            print(f"Processing page {page_num}...")
+            lines = get_page_lines_real_text(page, page_num)
 
-        lines = []
-        for i in range(1, 16):
-            selector = f"#Page{page_num}-Line{i}"
-            line_div = page.query_selector(selector)
-            if not line_div:
-                print(f"Line {i} not found")
-                lines.append("")
-                continue
+            # Save each page to output/pageNNN.txt
+            filename = os.path.join(OUTPUT_DIR, f"page{page_num:03}.txt")
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
 
-            hidden_div = line_div.query_selector('div[class*="SeoTextForVerse_visuallyHidden"]')
-            if not hidden_div:
-                print(f"Hidden text div not found in line {i}")
-                lines.append("")
-                continue
-
-            first_child = hidden_div.query_selector("div")
-            text = first_child.inner_text().strip() if first_child else hidden_div.inner_text().strip()
-            lines.append(text)
+            all_pages.append(lines)
 
         browser.close()
-        return lines
+
+    # Save all pages to pages.json
+    with open("pages.json", "w", encoding="utf-8") as jf:
+        json.dump(all_pages, jf, ensure_ascii=False, indent=2)
+
+    print("Done! All pages saved to output/*.txt and pages.json")
 
 if __name__ == "__main__":
-    page_num = 7
-    lines = get_page_lines_real_text(page_num)
-
-    filename = f"page{page_num}.txt"
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines))
-
-    print(f"Saved page {page_num} text to {filename}")
+    main()
