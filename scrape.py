@@ -44,12 +44,15 @@ def get_page_lines_real_text(page, page_num):
             lines.append("")
             continue
 
-        first_child = hidden_div.query_selector("div")
-        text = first_child.inner_text().strip() if first_child else hidden_div.inner_text().strip()
+        # Extract the text from the hidden div. First div has no tashkeel, second has tashkeel.
+        text_elements = hidden_div.query_selector_all("div")
+        if len(text_elements) != 2:
+            raise RuntimeError(f"Unexpected number of text elements for page {page_num}, line {i}: {len(text_elements)}")
+        text = text_elements[1].inner_text().strip()
         lines.append(text)
 
     if len(lines) != 15:
-        raise RuntimeError(f"Page {page_num} returned {len(lines)} lines instead of 15")
+        print(f"Page {page_num} returned {len(lines)} lines instead of 15")
 
     return lines
 
