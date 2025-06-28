@@ -48,6 +48,9 @@ def get_page_lines_real_text(page, page_num):
         text = first_child.inner_text().strip() if first_child else hidden_div.inner_text().strip()
         lines.append(text)
 
+    if len(lines) != 15:
+        raise RuntimeError(f"Page {page_num} returned {len(lines)} lines instead of 15")
+
     return lines
 
 def main():
@@ -58,8 +61,9 @@ def main():
         page = browser.new_page()
 
         all_pages = []
+        start_time = time.time()
+
         for page_num in range(1, MAX_PAGE + 1):
-            print(f"Processing page {page_num}...")
             lines = get_page_lines_real_text(page, page_num)
 
             # Save each page to output/pageNNN.txt
@@ -68,6 +72,14 @@ def main():
                 f.write("\n".join(lines))
 
             all_pages.append(lines)
+
+            # Every 5 pages, output progress info
+            if page_num % 5 == 0:
+                elapsed = time.time() - start_time
+                ppm = page_num / (elapsed / 60)  # pages per minute
+                pages_left = MAX_PAGE - page_num
+                eta = pages_left / ppm if ppm > 0 else float('inf')
+                print(f"Scraped {page_num} pages at {ppm:.1f} pages/min, ETA: {eta:.1f} minutes")
 
         browser.close()
 
