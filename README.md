@@ -1,6 +1,6 @@
 # Line By Line Qur'an
 
-Scrapes the Qur'an text, from quran.com, and generates one page per file, with one line per line of the mushaf. This is the `15 line mushaf` which is also known as the Uthmani and Madini mushaf.
+Scrapes the Qur'an text, from quran.com, and generates one page per file, with one line per line of the mushaf. This is the "15 line mushaf" which is also known as the Uthmani and Madini mushaf.
 
 These lines exactly match the 'Uthmani script, line by line, page by page. If you're interested in the output, it's available in two formats:
 
